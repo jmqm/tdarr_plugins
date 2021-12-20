@@ -11,8 +11,10 @@ const details = () => ({
   Name: 'jmqm - Downmix audio tracks',
   Type: 'Audio',
   Operation: 'Transcode',
-  Description: 'Downmixes audio tracks from 8 channels (7.1) to 3 channels (2.1).\n' +
-    '2.1 track will use AAC codec, 5.1 track will use 7.1\'s codec.',
+  Description: 'Downmixes audio tracks from 8 channels (7.1) to 3 channels (2.1). ' +
+    '2.1 will use AC3 codec, 5.1 will use 7.1\'s codec. ' +
+    'Example: 7.1 is using Opus; when creating 5.1, it will use Opus. ' +
+    '5.1 is using Opus; when creating 2.1, it will use AC3.',
   Version: '1.0',
   Tags: 'pre-processing,ffmpeg,audio only'
 });
@@ -92,7 +94,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
         // 6 channel to 3.
         if (has6Channel && channelCount === 6 && !has3Channel) {
-          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, "aac", 3, `${language} [2.1 Stereo]`)
+          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, "ac3", 3, `${language} [2.1 Stereo]`)
           response.infoLog += `👷 Creating ${language} 3 channel track from 6 channel track...\n`;
           convert = true;
         }
