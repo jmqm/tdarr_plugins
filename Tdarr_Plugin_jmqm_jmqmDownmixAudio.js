@@ -11,16 +11,17 @@ const details = () => ({
   Name: 'jmqm - Downmix audio tracks',
   Type: 'Audio',
   Operation: 'Transcode',
-  Description: 'Downmixes audio tracks from 8 channels to 2 channels.\n',
+  Description: 'Downmixes audio tracks from 8 channels (7.1) to 3 channels (2.1).\n' +
+    '2.1 track will use AAC codec, 5.1 track will use 7.1\'s codec.',
   Version: '1.0',
   Tags: 'pre-processing,ffmpeg,audio only'
-  // Inputs: []
 });
 
+const generateFfmpegCommand = (streamId, audioId, codec, channelCount, title) =>
+  `-map 0:${streamId} -c:a:${audioId} ${codec} -ac ${channelCount} -metadata:s:a:${audioId} "title=${title}" `;
+  
 // eslint-disable-next-line no-unused-vars
 const plugin = (file, librarySettings, inputs, otherArguments) => {
-  // eslint-disable-next-line no-unused-vars,no-param-reassign
-  // inputs = loadDefaultValues(inputs, details);
   const response = {
     processFile: false,
     container: `.${file.container}`,
@@ -40,13 +41,13 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   // Set up required variables.
   const languages = require('@cospired/i18n-iso-languages');
   let ffmpegCommandInsert = '';
-  let audioIdx = 0;
-  let has2Channel = false;
+  let audioId = 0;
+  let has3Channel = false;
   let has6Channel = false;
   let has8Channel = false;
   let convert = false;
 
-  // Check audio tracks' channels, flip 'has#Channel' variables.
+  // Check audio track channels, flip 'has#Channel' variables.
   for (let i = 0; i < file.ffProbeData.streams.length; i++) {
     const stream = file.ffProbeData.streams[i];
 
@@ -54,8 +55,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       if (stream.codec_type.toLowerCase() === 'audio') {
         const channelCount = stream.channels;
 
-        if (channelCount === 2) {
-          has2Channel = true;
+        if (channelCount === 3) {
+          has3Channel = true;
         }
 
         if (channelCount === 6) {
@@ -78,27 +79,28 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     if (stream.codec_type.toLowerCase() === 'audio') {
       try {
         // Get channel count and parse language.
+        const codec = stream.codec_name;
         const channelCount = stream.channels;
         const language = languages.getName(stream.tags.language, 'en');
 
         // 8 channel to 6.
         if (has8Channel && channelCount === 8 && !has6Channel) {
-          ffmpegCommandInsert += `-map 0:${i} -c:a:${audioIdx} aac -ac 6 -metadata:s:a:${audioIdx} "title=${language} [5.1 Surround]" `;
-          response.infoLog += '👷 Creating 6 channel track from 8 channel track...\n';
+          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, codec, 6, `${language} [5.1 Surround]`)
+          response.infoLog += `👷 Creating ${language} 6 channel track from 8 channel track...\n`;
           convert = true;
         }
 
-        // 6 channel to 2.
-        if (has6Channel && channelCount === 6 && !has2Channel) {
-          ffmpegCommandInsert += `-map 0:${i} -c:a:${audioIdx} aac -ac 2 -metadata:s:a:${audioIdx} "title=${language} [2.0 Stereo]" `;
-          response.infoLog += '👷 Creating 2 channel track from 6 channel track...\n';
+        // 6 channel to 3.
+        if (has6Channel && channelCount === 6 && !has3Channel) {
+          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, "aac", 3, `${language} [2.1 Stereo]`)
+          response.infoLog += `👷 Creating ${language} 3 channel track from 6 channel track...\n`;
           convert = true;
         }
       } catch (error) {
         // error
       }
 
-      audioIdx += 1;
+      audioId += 1;
     }
   }
 
