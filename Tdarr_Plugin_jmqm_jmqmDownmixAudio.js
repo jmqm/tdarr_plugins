@@ -11,17 +11,17 @@ const details = () => ({
   Name: 'jmqm - Downmix audio tracks',
   Type: 'Audio',
   Operation: 'Transcode',
-  Description: 'Downmixes audio tracks from 8 channels (7.1) to 3 channels (2.1). ' +
-    '2.1 will use AC3 codec, 5.1 will use 7.1\'s codec. ' +
-    'Example: 7.1 is using Opus; when creating 5.1, it will use Opus. ' +
-    '5.1 is using Opus; when creating 2.1, it will use AC3.',
+  Description: 'Downmixes audio tracks from 8 channels (7.1) to 2 channels (2.0). ' +
+    'Downmixed tracks will use Opus. ' +
+    'Example: 7.1 is using AAC; when creating 5.1, it will encoded with Opus. ' +
+    '5.1 is using Opus; when creating 2.0, it will use Opus.',
   Version: '1.0',
   Tags: 'pre-processing,ffmpeg,audio only'
 });
 
 const generateFfmpegCommand = (streamId, audioId, codec, channelCount, title) =>
   `-map 0:${streamId} -c:a:${audioId} ${codec} -ac ${channelCount} -metadata:s:a:${audioId} "title=${title}" `;
-  
+
 // eslint-disable-next-line no-unused-vars
 const plugin = (file, librarySettings, inputs, otherArguments) => {
   const response = {
@@ -44,7 +44,7 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   const languages = require('@cospired/i18n-iso-languages');
   let ffmpegCommandInsert = '';
   let audioId = 0;
-  let has3Channel = false;
+  let has2Channel = false;
   let has6Channel = false;
   let has8Channel = false;
   let convert = false;
@@ -57,8 +57,8 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
       if (stream.codec_type.toLowerCase() === 'audio') {
         const channelCount = stream.channels;
 
-        if (channelCount === 3) {
-          has3Channel = true;
+        if (channelCount === 2 || channelCount === 3) {
+          has2Channel = true;
         }
 
         if (channelCount === 6) {
@@ -81,21 +81,20 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     if (stream.codec_type.toLowerCase() === 'audio') {
       try {
         // Get channel count and parse language.
-        const codec = stream.codec_name;
         const channelCount = stream.channels;
         const language = languages.getName(stream.tags.language, 'en');
 
         // 8 channel to 6.
         if (has8Channel && channelCount === 8 && !has6Channel) {
-          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, codec, 6, `${language} [5.1 Surround]`)
+          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, 'libopus', 6, `${language} [5.1 Surround]`)
           response.infoLog += `👷 Creating ${language} 6 channel track from 8 channel track...\n`;
           convert = true;
         }
 
-        // 6 channel to 3.
-        if (has6Channel && channelCount === 6 && !has3Channel) {
-          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, "ac3", 3, `${language} [2.1 Stereo]`)
-          response.infoLog += `👷 Creating ${language} 3 channel track from 6 channel track...\n`;
+        // 6 channel to 2.
+        if (has6Channel && channelCount === 6 && !has2Channel) {
+          ffmpegCommandInsert += generateFfmpegCommand(i, audioId, 'libopus', 2, `${language} [2.0 Stereo]`)
+          response.infoLog += `👷 Creating ${language} 2 channel track from 6 channel track...\n`;
           convert = true;
         }
       } catch (error) {
@@ -110,9 +109,9 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
   response.processFile = convert;
 
   if (convert) {
-    response.preset = `, -map 0 -c:v copy -c:a copy ${ffmpegCommandInsert} -strict -2 -c:s copy -max_muxing_queue_size 9999 `;
+    response.preset = `, -map 0 -c:v copy -c:a copy ${ffmpegCommandInsert} -c:s copy -strict -2 -max_muxing_queue_size 9999 `;
   } else {
-    response.infoLog += '👍 File requires no (further) work.\n';
+    response.infoLog += '👍 File requires no work, or no further work.\n';
   }
 
   return response;
