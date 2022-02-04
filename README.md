@@ -14,7 +14,7 @@ And I'm not really about that. I like the freedom of improving, removing or addi
 ### Some code look familiar...
 
 I download a plugin from the community I like and I change it to the way I want. Credits are at the bottom of the files.
-I don't program in JavaScript _( because I hate it )_ and it seems like Tdarr is doing something funky w/ them at times, so there will be questionable code.
+I don't program in vanilla JavaScript _( because I hate it )_ and it seems like Tdarr is doing something funky w/ them at times, so there will be questionable code.
 
 ### How do I use these scripts?
 
